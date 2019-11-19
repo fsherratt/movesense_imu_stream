@@ -41,27 +41,49 @@ private:
 private:
     void configGattSvc();
 
+    void subscribeChar();
+    void unsubscribeChar();
+
+    void configAccel();
     void subscribeAccel();
     void unsubscribeAccel();
 
+    void configGyro();
     void subscribeGyro();
     void unsubscribeGyro();
 
+    void configMagn();
+    void subscribeMagn();
+    void unsubscribeMagn();
+
+    void subscribeIMU();
+    void unsubscribeIMU();
+
     wb::ResourceId mMeasAccResourceId;
     wb::ResourceId mMeasGyroResourceId;
+    wb::ResourceId mMeasMagnResourceId;
+    wb::ResourceId mMeasIMUResourceId;
 
-    wb::ResourceId mAccelCharResource;
-    wb::ResourceId mGyroCharResource;
+    wb::ResourceId mCharResource;
 
     int32_t mMeasSvcHandle;
-    int32_t mAccelCharHandle;
-    int32_t mGyroCharHandle;
+    int32_t mCharHandle;
 
-    union uTripleFloatToBytes {
-            struct {
-                uint32_t timestamp;
-                int16_t floatData[24];
-            } data;
-            uint8_t b[52];
+    union uData_104 {
+        struct {
+            uint32_t timestamp;
+            int16_t data[8][3];
+        } s;
+        uint8_t b[52];
+    };
+
+    union uIMU9_104 {
+        struct {
+            uint32_t timestamp;
+            int16_t accel[8][3];
+            int16_t gyro[8][3];
+            int16_t magn[8][3];
+        } s;
+        uint8_t b[148];
     };
 };
