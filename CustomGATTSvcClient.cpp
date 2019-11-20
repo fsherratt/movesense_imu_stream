@@ -34,6 +34,11 @@ CustomGATTSvcClient::CustomGATTSvcClient():
     mMeasSvcHandle(0),
     mCharHandle(0),
     highRate(0),
+    mCommBlePeersResourceId(wb::ID_INVALID_RESOURCE),
+    mMeasAccResourceId(wb::ID_INVALID_RESOURCE),
+    mMeasGyroResourceId(wb::ID_INVALID_RESOURCE),
+    mMeasMagnResourceId(wb::ID_INVALID_RESOURCE),
+    mMeasIMUResourceId(wb::ID_INVALID_RESOURCE),
     deviceConnected(WB_RES::PeerStateValues::DISCONNECTED)
 {
 }
