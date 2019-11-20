@@ -39,6 +39,12 @@ private:
                           const wb::ParameterList& rParameters);
 
 private:
+    void subscribeBlePeers();
+    void unsubscribeBlePeers();
+
+    wb::ResourceId mCommBlePeersResourceId;
+    bool deviceConnected;
+
     void configGattSvc();
 
     void subscribeChar();
@@ -65,9 +71,13 @@ private:
     wb::ResourceId mMeasIMUResourceId;
 
     wb::ResourceId mCharResource;
+    wb::ResourceId mChar2Resource;
 
     int32_t mMeasSvcHandle;
     int32_t mCharHandle;
+    int32_t mChar2Handle;
+
+    bool highRate;
 
     union uData_104 {
         struct {
