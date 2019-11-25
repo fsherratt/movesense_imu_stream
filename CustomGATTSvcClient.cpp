@@ -491,43 +491,44 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
                 return;
             }
 
-            for ( size_t i = 0; i < imuValue.arrayAcc.size()-1; i += 2 )
+            for ( size_t i = 0; i < imuValue.arrayAcc.size()-1; i+=2 )
             {
+                uint8_t j = i/2;
                 wb::FloatVector3D sensorValue = imuValue.arrayAcc[i];
 
-                uLowCharData.s.accel[i][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
-                uLowCharData.s.accel[i][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
-                uLowCharData.s.accel[i][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
+                uLowCharData.s.accel[j][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
+                uLowCharData.s.accel[j][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
+                uLowCharData.s.accel[j][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
 
                 sensorValue = imuValue.arrayAcc[i+1];
 
-                uHghCharData.s.accel[i][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
-                uHghCharData.s.accel[i][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
-                uHghCharData.s.accel[i][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
+                uHghCharData.s.accel[j][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
+                uHghCharData.s.accel[j][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
+                uHghCharData.s.accel[j][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
 
                 sensorValue = imuValue.arrayGyro[i];
 
-                uLowCharData.s.gyro[i][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
-                uLowCharData.s.gyro[i][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
-                uLowCharData.s.gyro[i][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
+                uLowCharData.s.gyro[j][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
+                uLowCharData.s.gyro[j][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
+                uLowCharData.s.gyro[j][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
 
                 sensorValue = imuValue.arrayGyro[i+1];
 
-                uHghCharData.s.gyro[i][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
-                uHghCharData.s.gyro[i][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
-                uHghCharData.s.gyro[i][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
+                uHghCharData.s.gyro[j][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
+                uHghCharData.s.gyro[j][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
+                uHghCharData.s.gyro[j][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
 
                 sensorValue = imuValue.arrayMagn[i];
 
-                uLowCharData.s.magn[i][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
-                uLowCharData.s.magn[i][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
-                uLowCharData.s.magn[i][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
+                uLowCharData.s.magn[j][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
+                uLowCharData.s.magn[j][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
+                uLowCharData.s.magn[j][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
 
                 sensorValue = imuValue.arrayMagn[i+1];
 
-                uHghCharData.s.magn[i][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
-                uHghCharData.s.magn[i][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
-                uHghCharData.s.magn[i][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
+                uHghCharData.s.magn[j][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
+                uHghCharData.s.magn[j][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
+                uHghCharData.s.magn[j][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
             }
 
             WB_RES::Characteristic newCharLowValue;

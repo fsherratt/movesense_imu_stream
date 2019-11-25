@@ -90,10 +90,10 @@ private:
     union uIMU9_104 {
         struct {
             uint32_t timestamp;
-            int16_t accel[8][3];
-            int16_t gyro[8][3];
-            int16_t magn[8][3];
+            int16_t accel[4][3];
+            int16_t gyro[4][3];
+            int16_t magn[4][3];
         } s;
-        uint8_t b[148];
+        uint8_t b[76];
     };
 };
