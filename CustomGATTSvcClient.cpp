@@ -479,56 +479,40 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
         case WB_RES::LOCAL::MEAS_IMU9_SAMPLERATE::LID:
         {
             uIMU9_104 uLowCharData;
-            uIMU9_104 uHghCharData;
+            uIMU9_104 uHighCharData;
 
             const WB_RES::IMU9Data& imuValue = rValue.convertTo<const WB_RES::IMU9Data&>();
             uLowCharData.s.timestamp = imuValue.timestamp;
-            uHghCharData.s.timestamp = imuValue.timestamp + SAMPLE_PERIOD_MS;
+            uHighCharData.s.timestamp = imuValue.timestamp + SAMPLE_PERIOD_MS;
 
-            if ( imuValue.arrayAcc.size() <= 0 || imuValue.arrayAcc.size() > 8)
+            if ( imuValue.arrayAcc.size() != 8)
             {
                 DebugLogger::error("Inavlid data array");
                 return;
             }
 
-            for ( size_t i = 0; i < imuValue.arrayAcc.size()-1; i+=2 )
+            uIMU9_104 *pCharData = nullptr;
+
+            for ( size_t i = 0; i < imuValue.arrayAcc.size()-1; i++ )
             {
-                uint8_t j = i/2;
-                wb::FloatVector3D sensorValue = imuValue.arrayAcc[i];
+                uint8_t j = i / 2;
+                pCharData = (i % 2 == 0) ? &uLowCharData : &uHighCharData;
 
-                uLowCharData.s.accel[j][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
-                uLowCharData.s.accel[j][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
-                uLowCharData.s.accel[j][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
+                wb::FloatVector3D accelValue = imuValue.arrayAcc[i];
+                wb::FloatVector3D gyroValue = imuValue.arrayGyro[i];
+                wb::FloatVector3D magnValue = imuValue.arrayMagn[i];
 
-                sensorValue = imuValue.arrayAcc[i+1];
+                pCharData->s.accel[j][0] = (int16_t)(accelValue.mX * accelUint16Scalar);
+                pCharData->s.accel[j][1] = (int16_t)(accelValue.mY * accelUint16Scalar);
+                pCharData->s.accel[j][2] = (int16_t)(accelValue.mZ * accelUint16Scalar);
 
-                uHghCharData.s.accel[j][0] = (int16_t)(sensorValue.mX * accelUint16Scalar);
-                uHghCharData.s.accel[j][1] = (int16_t)(sensorValue.mY * accelUint16Scalar);
-                uHghCharData.s.accel[j][2] = (int16_t)(sensorValue.mZ * accelUint16Scalar);
+                pCharData->s.gyro[j][0] = (int16_t)(gyroValue.mX * gyroUint16Scalar);
+                pCharData->s.gyro[j][1] = (int16_t)(gyroValue.mY * gyroUint16Scalar);
+                pCharData->s.gyro[j][2] = (int16_t)(gyroValue.mZ * gyroUint16Scalar);
 
-                sensorValue = imuValue.arrayGyro[i];
-
-                uLowCharData.s.gyro[j][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
-                uLowCharData.s.gyro[j][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
-                uLowCharData.s.gyro[j][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
-
-                sensorValue = imuValue.arrayGyro[i+1];
-
-                uHghCharData.s.gyro[j][0] = (int16_t)(sensorValue.mX * gyroUint16Scalar);
-                uHghCharData.s.gyro[j][1] = (int16_t)(sensorValue.mY * gyroUint16Scalar);
-                uHghCharData.s.gyro[j][2] = (int16_t)(sensorValue.mZ * gyroUint16Scalar);
-
-                sensorValue = imuValue.arrayMagn[i];
-
-                uLowCharData.s.magn[j][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
-                uLowCharData.s.magn[j][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
-                uLowCharData.s.magn[j][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
-
-                sensorValue = imuValue.arrayMagn[i+1];
-
-                uHghCharData.s.magn[j][0] = (int16_t)(sensorValue.mX * magnUint16Scalar);
-                uHghCharData.s.magn[j][1] = (int16_t)(sensorValue.mY * magnUint16Scalar);
-                uHghCharData.s.magn[j][2] = (int16_t)(sensorValue.mZ * magnUint16Scalar);
+                pCharData->s.magn[j][0] = (int16_t)(magnValue.mX * magnUint16Scalar);
+                pCharData->s.magn[j][1] = (int16_t)(magnValue.mY * magnUint16Scalar);
+                pCharData->s.magn[j][2] = (int16_t)(magnValue.mZ * magnUint16Scalar);
             }
 
             WB_RES::Characteristic newCharLowValue;
@@ -539,7 +523,7 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
             if ( highRate ) 
             {
                 WB_RES::Characteristic newCharHighValue;
-                newCharHighValue.bytes = wb::MakeArray<uint8_t>(uHghCharData.b, sizeof(uHghCharData.b));
+                newCharHighValue.bytes = wb::MakeArray<uint8_t>(uHighCharData.b, sizeof(uHighCharData.b));
                 asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
                             mMeasSvcHandle, mChar2Handle, newCharHighValue);
             }
