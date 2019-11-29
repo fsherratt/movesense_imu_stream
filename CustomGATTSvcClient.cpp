@@ -24,9 +24,9 @@ const uint16_t cChar2UUID16 = 0x0002;
 
 const uint32_t SAMPLE_PERIOD_MS = 5;
 
-const float accelUint16Scalar = 2000;
-const float gyroUint16Scalar = 16;
-const float magnUint16Scalar = 4;
+const float accelUint16Scalar = 1000;
+const float gyroUint16Scalar = 8;
+const float magnUint16Scalar = 2;
 
 CustomGATTSvcClient::CustomGATTSvcClient():
     ResourceClient(WBDEBUG_NAME(__FUNCTION__), WB_EXEC_CTX_APPLICATION),
@@ -478,12 +478,18 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
 
         case WB_RES::LOCAL::MEAS_IMU9_SAMPLERATE::LID:
         {
-            uIMU9_104 uLowCharData;
-            uIMU9_104 uHighCharData;
+            static uIMU9_104 uLowCharData;
+            static uIMU9_104 uHighCharData;
+
+            static uint8_t elmentCnt[2] = {0,4};
 
             const WB_RES::IMU9Data& imuValue = rValue.convertTo<const WB_RES::IMU9Data&>();
-            uLowCharData.s.timestamp = imuValue.timestamp;
-            uHighCharData.s.timestamp = imuValue.timestamp + SAMPLE_PERIOD_MS;
+            
+            if (elmentCnt[0] == 0)
+                uLowCharData.s.timestamp = imuValue.timestamp;
+
+            if (elmentCnt[1] == 0)
+                uHighCharData.s.timestamp = imuValue.timestamp + SAMPLE_PERIOD_MS;
 
             if ( imuValue.arrayAcc.size() != 8)
             {
@@ -491,42 +497,58 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
                 return;
             }
 
-            uIMU9_104 *pCharData = nullptr;
+            const uint8_t SAMPLES = 8;
+            const uint8_t ELEMENTS = 3;
 
-            for ( size_t i = 0; i < imuValue.arrayAcc.size()-1; i++ )
+            uIMU9_104 *pCharData = nullptr;
+        
+
+            for ( size_t i = 0; i < imuValue.arrayAcc.size(); i++ )
             {
-                uint8_t j = i / 2;
+                uint8_t j = elmentCnt[i%2];
+
                 pCharData = (i % 2 == 0) ? &uLowCharData : &uHighCharData;
 
                 wb::FloatVector3D accelValue = imuValue.arrayAcc[i];
                 wb::FloatVector3D gyroValue = imuValue.arrayGyro[i];
                 wb::FloatVector3D magnValue = imuValue.arrayMagn[i];
 
-                pCharData->s.accel[j][0] = (int16_t)(accelValue.mX * accelUint16Scalar);
-                pCharData->s.accel[j][1] = (int16_t)(accelValue.mY * accelUint16Scalar);
-                pCharData->s.accel[j][2] = (int16_t)(accelValue.mZ * accelUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 0] = (int16_t)(accelValue.mX * accelUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 1] = (int16_t)(accelValue.mY * accelUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 2] = (int16_t)(accelValue.mZ * accelUint16Scalar);
 
-                pCharData->s.gyro[j][0] = (int16_t)(gyroValue.mX * gyroUint16Scalar);
-                pCharData->s.gyro[j][1] = (int16_t)(gyroValue.mY * gyroUint16Scalar);
-                pCharData->s.gyro[j][2] = (int16_t)(gyroValue.mZ * gyroUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 0] = (int16_t)(gyroValue.mX * gyroUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 1] = (int16_t)(gyroValue.mY * gyroUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 2] = (int16_t)(gyroValue.mZ * gyroUint16Scalar);
 
-                pCharData->s.magn[j][0] = (int16_t)(magnValue.mX * magnUint16Scalar);
-                pCharData->s.magn[j][1] = (int16_t)(magnValue.mY * magnUint16Scalar);
-                pCharData->s.magn[j][2] = (int16_t)(magnValue.mZ * magnUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 0] = (int16_t)(magnValue.mX * magnUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 1] = (int16_t)(magnValue.mY * magnUint16Scalar);
+                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 2] = (int16_t)(magnValue.mZ * magnUint16Scalar);
+                
+                j++;
+                elmentCnt[i%2] = j < SAMPLES ? j : 0;
+
+                if (j >= SAMPLES ) 
+                {
+                    if (i % 2 ==0) 
+                    {
+                        WB_RES::Characteristic newCharLowValue;
+                        newCharLowValue.bytes = wb::MakeArray<uint8_t>(uLowCharData.b, sizeof(uLowCharData.b));
+                        asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
+                                    mMeasSvcHandle, mCharHandle, newCharLowValue);
+                    } 
+                    else if ( highRate ) 
+                    {
+                        WB_RES::Characteristic newCharHighValue;
+                        newCharHighValue.bytes = wb::MakeArray<uint8_t>(uHighCharData.b, sizeof(uHighCharData.b));
+                        asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
+                                    mMeasSvcHandle, mChar2Handle, newCharHighValue);
+                    }
+                }
+                
             }
 
-            WB_RES::Characteristic newCharLowValue;
-            newCharLowValue.bytes = wb::MakeArray<uint8_t>(uLowCharData.b, sizeof(uLowCharData.b));
-            asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                        mMeasSvcHandle, mCharHandle, newCharLowValue);
-
-            if ( highRate ) 
-            {
-                WB_RES::Characteristic newCharHighValue;
-                newCharHighValue.bytes = wb::MakeArray<uint8_t>(uHighCharData.b, sizeof(uHighCharData.b));
-                asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                            mMeasSvcHandle, mChar2Handle, newCharHighValue);
-            }
+            
 
             break;
         }
@@ -595,7 +617,8 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
 
                 const WB_RES::VisualIndType type = WB_RES::VisualIndTypeValues::SHORT_VISUAL_INDICATION;
                 asyncPut(WB_RES::LOCAL::UI_IND_VISUAL(), AsyncRequestOptions::Empty, type);
-            }                    
+            }
+            break;                
         }
     }
 }
