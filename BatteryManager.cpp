@@ -19,7 +19,9 @@
 const char* const BatteryManager::LAUNCHABLE_NAME = "BatteryManager";
 
 BatteryManager::BatteryManager() : ResourceClient(WBDEBUG_NAME(__FUNCTION__), WB_EXEC_CTX_APPLICATION),
-                                   LaunchableModule(LAUNCHABLE_NAME, WB_EXEC_CTX_APPLICATION)
+                                   LaunchableModule(LAUNCHABLE_NAME, WB_EXEC_CTX_APPLICATION),
+                                   mTimer(whiteboard::ID_INVALID_TIMER),
+                                   timerSet(false)
 {
     mTimer = whiteboard::ID_INVALID_TIMER;
 }
@@ -104,13 +106,14 @@ void BatteryManager::processIncoming( whiteboard::ResourceId resourceId, const w
 
 void BatteryManager::movementStateChange( uint32_t movement )
 {
+    
     // Device is moving
-    if ( movement == 1)
+    if (movement == 1 && timerSet)
     {
         clearTimer();
     }
     // Device is stationary
-    else
+    else if (!timerSet)
     {
         setTimer(POWEROFF_TIMEOUT_MS);
     }
@@ -125,6 +128,9 @@ void BatteryManager::onTimer(whiteboard::TimerId timerId)
     }
 
     clearTimer();
+
+    const WB_RES::VisualIndType type = WB_RES::VisualIndTypeValues::SHORT_VISUAL_INDICATION;
+    asyncPut(WB_RES::LOCAL::UI_IND_VISUAL(), AsyncRequestOptions::Empty, type);
 
     // Set wakup command to trigger from MAX300X
     asyncPut(WB_RES::LOCAL::COMPONENT_MAX3000X_WAKEUP::ID,

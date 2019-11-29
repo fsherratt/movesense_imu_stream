@@ -20,9 +20,9 @@ private:
     */
     whiteboard::Result subscribeMovementState();
     void movementStateChange( uint32_t movement );
-
+    
+    bool timerSet;
     void setTimer( size_t timeout );
-
     void clearTimer();
     
 private:
