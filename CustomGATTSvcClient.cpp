@@ -22,12 +22,6 @@ const char* const CustomGATTSvcClient::LAUNCHABLE_NAME = "CstGattS";
 const uint16_t cCharUUID16 = 0x0001;
 const uint16_t cChar2UUID16 = 0x0002;
 
-const uint32_t SAMPLE_PERIOD_MS = 5;
-
-const float accelUint16Scalar = 1000;
-const float gyroUint16Scalar = 8;
-const float magnUint16Scalar = 2;
-
 CustomGATTSvcClient::CustomGATTSvcClient():
     ResourceClient(WBDEBUG_NAME(__FUNCTION__), WB_EXEC_CTX_APPLICATION),
     LaunchableModule(LAUNCHABLE_NAME, WB_EXEC_CTX_APPLICATION),
@@ -35,9 +29,6 @@ CustomGATTSvcClient::CustomGATTSvcClient():
     mCharHandle(0),
     highRate(0),
     mCommBlePeersResourceId(wb::ID_INVALID_RESOURCE),
-    mMeasAccResourceId(wb::ID_INVALID_RESOURCE),
-    mMeasGyroResourceId(wb::ID_INVALID_RESOURCE),
-    mMeasMagnResourceId(wb::ID_INVALID_RESOURCE),
     mMeasIMUResourceId(wb::ID_INVALID_RESOURCE),
     deviceConnected(WB_RES::PeerStateValues::DISCONNECTED)
 {
@@ -71,9 +62,6 @@ bool CustomGATTSvcClient::startModule()
 void CustomGATTSvcClient::stopModule()
 {
     // Stop timer
-    unsubscribeAccel();
-    unsubscribeGyro();
-    unsubscribeMagn();
     unsubscribeIMU();
     unsubscribeBlePeers();
     mModuleState = WB_RES::ModuleStateValues::STOPPED;
@@ -115,9 +103,9 @@ void CustomGATTSvcClient::unsubscribeBlePeers()
 void CustomGATTSvcClient::configGattSvc()
 {
     WB_RES::GattSvc customGattSvc;
-    WB_RES::GattChar characteristics[2];
+    WB_RES::GattChar characteristics[1];
     WB_RES::GattChar &measChar = characteristics[0];
-    WB_RES::GattChar &measChar2 = characteristics[1];
+    // WB_RES::GattChar &measChar2 = characteristics[1];
 
     constexpr uint8_t SENSOR_DATASERVICE_UUID[] = {0x78, 0xDA, 0xAA, 0x46, 0xA0, 0x01, 0x45, 0x2E, \
                                                    0x97, 0x30, 0xDF, 0x01, 0x3D, 0x22, 0x68, 0x8F};
@@ -127,13 +115,13 @@ void CustomGATTSvcClient::configGattSvc()
     measChar.props = wb::MakeArray<WB_RES::GattProperty>( &CharProp, 1);
     measChar.uuid = wb::MakeArray<uint8_t>( reinterpret_cast<const uint8_t*>(&cCharUUID16), 2);
 
-    WB_RES::GattProperty CharProp2 = WB_RES::GattProperty::NOTIFY;
-    measChar2.props = wb::MakeArray<WB_RES::GattProperty>( &CharProp2, 1);
-    measChar2.uuid = wb::MakeArray<uint8_t>( reinterpret_cast<const uint8_t*>(&cChar2UUID16), 2);
+    // WB_RES::GattProperty CharProp2 = WB_RES::GattProperty::NOTIFY;
+    // measChar2.props = wb::MakeArray<WB_RES::GattProperty>( &CharProp2, 1);
+    // measChar2.uuid = wb::MakeArray<uint8_t>( reinterpret_cast<const uint8_t*>(&cChar2UUID16), 2);
 
     // Combine chars to service
     customGattSvc.uuid = wb::MakeArray<uint8_t>(SENSOR_DATASERVICE_UUID, sizeof(SENSOR_DATASERVICE_UUID));
-    customGattSvc.chars = wb::MakeArray<WB_RES::GattChar>(characteristics, 2);
+    customGattSvc.chars = wb::MakeArray<WB_RES::GattChar>(characteristics, 1);
 
     // Create custom service
     asyncPost(WB_RES::LOCAL::COMM_BLE_GATTSVC(), AsyncRequestOptions::Empty, customGattSvc);
@@ -158,43 +146,6 @@ void CustomGATTSvcClient::configAccel()
     asyncPut(WB_RES::LOCAL::MEAS_ACC_CONFIG(), AsyncRequestOptions::Empty, accConfig);
 }
 
-void CustomGATTSvcClient::subscribeAccel()
-{
-    configAccel();
-
-    if ( mMeasAccResourceId != wb::ID_INVALID_RESOURCE )
-        return;
-
-    // Subscribe Accelerometer
-    // Sample Rate - 13, 26, 52, 104, 208, 416, 833, 1666
-    wb::Result result = getResource("Meas/Acc/104", mMeasAccResourceId);
-    if (!wb::RETURN_OKC(result))
-    {
-        return;
-    }
-    
-    result = asyncSubscribe(mMeasAccResourceId, AsyncRequestOptions(NULL, 0, true));
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncsubscribe threw error: %u", result);
-    }
-}
-
-void CustomGATTSvcClient::unsubscribeAccel()
-{
-    if ( mMeasAccResourceId == wb::ID_INVALID_RESOURCE )
-        return;
-
-    wb::Result result = asyncUnsubscribe(mMeasAccResourceId, NULL);
-
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncUnsubscribe threw error: %u", result);
-    }
-
-    mMeasAccResourceId = wb::ID_INVALID_RESOURCE;
-}
-
 void CustomGATTSvcClient::configGyro()
 {
     // Set Gyro DPS Range
@@ -204,81 +155,8 @@ void CustomGATTSvcClient::configGyro()
     asyncPut(WB_RES::LOCAL::MEAS_GYRO_CONFIG(), AsyncRequestOptions::Empty, gyroConfig);
 }
 
-void CustomGATTSvcClient::subscribeGyro()
-{
-    configGyro();
-
-    if ( mMeasGyroResourceId != wb::ID_INVALID_RESOURCE )
-        return;
-
-    // Subscribe Accelerometer
-    // Sample Rate - 13, 26, 52, 104, 208, 416, 833, 1666
-    wb::Result result = getResource("Meas/Gyro/104", mMeasGyroResourceId);
-    if (!wb::RETURN_OKC(result))
-    {
-        return;
-    }
-    
-    result = asyncSubscribe(mMeasGyroResourceId, AsyncRequestOptions(NULL, 0, true));
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncsubscribe threw error: %u", result);
-    }
-}
-
-void CustomGATTSvcClient::unsubscribeGyro()
-{
-    if ( mMeasGyroResourceId == wb::ID_INVALID_RESOURCE )
-        return;
-
-    wb::Result result = asyncUnsubscribe(mMeasGyroResourceId, NULL);
-
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncUnsubscribe threw error: %u", result);
-    }
-
-    mMeasGyroResourceId = wb::ID_INVALID_RESOURCE;
-}
-
 void CustomGATTSvcClient::configMagn()
 {
-}
-
-void CustomGATTSvcClient::subscribeMagn()
-{
-    configMagn();
-
-    if ( mMeasMagnResourceId != wb::ID_INVALID_RESOURCE )
-        return;
-    // Subscribe Accelerometer
-    // Sample Rate - 13, 26, 52, 104, 208, 416, 833, 1666
-    wb::Result result = getResource("Meas/Magn/104", mMeasMagnResourceId);
-    if (!wb::RETURN_OKC(result))
-    {
-        return;
-    }
-    
-    result = asyncSubscribe(mMeasMagnResourceId, AsyncRequestOptions(NULL, 0, true));
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncsubscribe threw error: %u", result);
-    }
-}
-
-void CustomGATTSvcClient::unsubscribeMagn()
-{
-    if ( mMeasMagnResourceId == wb::ID_INVALID_RESOURCE )
-        return;
-
-    wb::Result result = asyncUnsubscribe(mMeasMagnResourceId, NULL);
-
-    if (!wb::RETURN_OKC(result))
-    {
-        DebugLogger::error("asyncUnsubscribe threw error: %u", result);
-    }
-
-    mMeasMagnResourceId = wb::ID_INVALID_RESOURCE;
 }
 
 void CustomGATTSvcClient::subscribeIMU()
@@ -290,7 +168,7 @@ void CustomGATTSvcClient::subscribeIMU()
     if ( mMeasIMUResourceId != wb::ID_INVALID_RESOURCE )
         return;
     
-    wb::Result result = getResource("Meas/IMU9/208", mMeasIMUResourceId);
+    wb::Result result = getResource("Meas/IMU9/104", mMeasIMUResourceId);
     if (!wb::RETURN_OKC(result))
     {
         return;
@@ -356,13 +234,13 @@ void CustomGATTSvcClient::onGetResult(wb::RequestId requestId,
                 {
                     mCharHandle = c.handle.hasValue() ? c.handle.getValue() : 0;
                 }
-                else if(uuid16 == cChar2UUID16)
-                {
-                    mChar2Handle = c.handle.hasValue() ? c.handle.getValue() : 0;
-                }
+                // else if(uuid16 == cChar2UUID16)
+                // {
+                //     mChar2Handle = c.handle.hasValue() ? c.handle.getValue() : 0;
+                // }
             }
 
-            if (!mCharHandle || !mChar2Handle )
+            if (!mCharHandle )//|| !mChar2Handle )
             {
                 DEBUGLOG("ERROR: Not all chars were configured!");
                 return;
@@ -371,13 +249,13 @@ void CustomGATTSvcClient::onGetResult(wb::RequestId requestId,
             char pathBuffer[32]= {'\0'};
             snprintf(pathBuffer, sizeof(pathBuffer), "/Comm/Ble/GattSvc/%d/%d", mMeasSvcHandle, mCharHandle);
             getResource(pathBuffer, mCharResource);
-            snprintf(pathBuffer, sizeof(pathBuffer), "/Comm/Ble/GattSvc/%d/%d", mMeasSvcHandle, mChar2Handle);
-            getResource(pathBuffer, mChar2Resource);
+            // snprintf(pathBuffer, sizeof(pathBuffer), "/Comm/Ble/GattSvc/%d/%d", mMeasSvcHandle, mChar2Handle);
+            // getResource(pathBuffer, mChar2Resource);
 
             // Subscribe to listen to characteristic 1 notifications (someone enables/disables the NOTIFY characteristic) 
             asyncSubscribe(mCharResource, AsyncRequestOptions::Empty);
             // Subscribe to listen to characteristic 2 notifications (someone enables/disables the NOTIFY characteristic) 
-            asyncSubscribe(mChar2Resource, AsyncRequestOptions::Empty);
+            // asyncSubscribe(mChar2Resource, AsyncRequestOptions::Empty);
             break;
         }
     }
@@ -389,166 +267,53 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
 {
     switch(resourceId.localResourceId)
     {
-        case WB_RES::LOCAL::MEAS_ACC_SAMPLERATE::LID:
-        {
-            uData_104 uCharData;
-            float floatToUint16Scalar = accelUint16Scalar;
-
-            const WB_RES::AccData& linearAccelerationValue = rValue.convertTo<const WB_RES::AccData&>();
-
-            const wb::Array<wb::FloatVector3D>& arrayData = linearAccelerationValue.arrayAcc;
-            uCharData.s.timestamp = linearAccelerationValue.timestamp;
-
-            if ( arrayData.size() <= 0 )
-                return;
-
-            for ( size_t i = 0; i < arrayData.size()-1; i++ )
-            {
-                wb::FloatVector3D sensorValue = arrayData[i];
-
-                uCharData.s.data[i][0] = (int16_t)(sensorValue.mX * floatToUint16Scalar);
-                uCharData.s.data[i][1] = (int16_t)(sensorValue.mY * floatToUint16Scalar);
-                uCharData.s.data[i][2] = (int16_t)(sensorValue.mZ * floatToUint16Scalar);
-            }
-
-            WB_RES::Characteristic newCharValue;
-            newCharValue.bytes = wb::MakeArray<uint8_t>(uCharData.b, sizeof(uCharData.b));
-            asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                        mMeasSvcHandle, mCharHandle, newCharValue);
-            break;
-        }
-
-        case WB_RES::LOCAL::MEAS_GYRO_SAMPLERATE::LID:
-        {
-            uData_104 uCharData;
-            float floatToUint16Scalar = gyroUint16Scalar;
-
-            const WB_RES::GyroData& gyroscopeValue = rValue.convertTo<const WB_RES::GyroData&>();
-
-            const wb::Array<wb::FloatVector3D>& arrayData = gyroscopeValue.arrayGyro;
-            uCharData.s.timestamp = gyroscopeValue.timestamp;
-
-            if ( arrayData.size() <= 0 )
-                return;
-
-            for ( size_t i = 0; i < arrayData.size()-1; i++ )
-            {
-                wb::FloatVector3D sensorValue = arrayData[i];
-
-                uCharData.s.data[i][0] = (int16_t)(sensorValue.mX * floatToUint16Scalar);
-                uCharData.s.data[i][1] = (int16_t)(sensorValue.mY * floatToUint16Scalar);
-                uCharData.s.data[i][2] = (int16_t)(sensorValue.mZ * floatToUint16Scalar);
-            }
-
-            WB_RES::Characteristic newCharValue;
-            newCharValue.bytes = wb::MakeArray<uint8_t>(uCharData.b, sizeof(uCharData.b));
-            asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                        mMeasSvcHandle, mCharHandle, newCharValue);
-            break;
-        }
-
-        case WB_RES::LOCAL::MEAS_MAGN_SAMPLERATE::LID:
-        {
-            uData_104 uCharData;
-            float floatToUint16Scalar = magnUint16Scalar;
-
-            const WB_RES::MagnData& magnetometerValue = rValue.convertTo<const WB_RES::MagnData&>();
-
-            const wb::Array<wb::FloatVector3D>& arrayData = magnetometerValue.arrayMagn;
-            uCharData.s.timestamp = magnetometerValue.timestamp;
-
-            if ( arrayData.size() <= 0 )
-                return;
-
-            for ( size_t i = 0; i < arrayData.size()-1; i++ )
-            {
-                wb::FloatVector3D sensorValue = arrayData[i];
-
-                uCharData.s.data[i][0] = (int16_t)(sensorValue.mX * floatToUint16Scalar);
-                uCharData.s.data[i][1] = (int16_t)(sensorValue.mY * floatToUint16Scalar);
-                uCharData.s.data[i][2] = (int16_t)(sensorValue.mZ * floatToUint16Scalar);
-            }
-
-            WB_RES::Characteristic newCharValue;
-            newCharValue.bytes = wb::MakeArray<uint8_t>(uCharData.b, sizeof(uCharData.b));
-            asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                        mMeasSvcHandle, mCharHandle, newCharValue);
-            break;
-        }
-
         case WB_RES::LOCAL::MEAS_IMU9_SAMPLERATE::LID:
         {
             static uIMU9_104 uLowCharData;
-            static uIMU9_104 uHighCharData;
-
-            static uint8_t elmentCnt[2] = {0,4};
+            // static uIMU9_104 uHighCharData;
 
             const WB_RES::IMU9Data& imuValue = rValue.convertTo<const WB_RES::IMU9Data&>();
-            
-            if (elmentCnt[0] == 0)
-                uLowCharData.s.timestamp = imuValue.timestamp;
-
-            if (elmentCnt[1] == 0)
-                uHighCharData.s.timestamp = imuValue.timestamp + SAMPLE_PERIOD_MS;
+            uLowCharData.s.timestamp = imuValue.timestamp;
 
             if ( imuValue.arrayAcc.size() != 8)
             {
                 DebugLogger::error("Inavlid data array");
                 return;
             }
-
-            const uint8_t SAMPLES = 8;
+            
             const uint8_t ELEMENTS = 3;
-
-            uIMU9_104 *pCharData = nullptr;
-        
+            const uint8_t SAMPLESxELEMENTS = 24;
+            const uint8_t SAMPLESxELEMENTSx2 = 48;
+            
+            const float accelUint16Scalar = 1000;
+            const float gyroUint16Scalar = 8;
+            const float magnUint16Scalar = 2;
 
             for ( size_t i = 0; i < imuValue.arrayAcc.size(); i++ )
             {
-                uint8_t j = elmentCnt[i%2];
+                const wb::FloatVector3D *accelValue = &imuValue.arrayAcc[i];
+                const wb::FloatVector3D *gyroValue = &imuValue.arrayGyro[i];
+                const wb::FloatVector3D *magnValue = &imuValue.arrayMagn[i];
 
-                pCharData = (i % 2 == 0) ? &uLowCharData : &uHighCharData;
+                uint8_t ixELEMENTS = i*ELEMENTS;
 
-                wb::FloatVector3D accelValue = imuValue.arrayAcc[i];
-                wb::FloatVector3D gyroValue = imuValue.arrayGyro[i];
-                wb::FloatVector3D magnValue = imuValue.arrayMagn[i];
+                uLowCharData.s.data[ixELEMENTS + 0] = (int16_t)(accelValue->mX * accelUint16Scalar);
+                uLowCharData.s.data[ixELEMENTS + 1] = (int16_t)(accelValue->mY * accelUint16Scalar);
+                uLowCharData.s.data[ixELEMENTS + 2] = (int16_t)(accelValue->mZ * accelUint16Scalar);
 
-                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 0] = (int16_t)(accelValue.mX * accelUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 1] = (int16_t)(accelValue.mY * accelUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*0 + j*ELEMENTS + 2] = (int16_t)(accelValue.mZ * accelUint16Scalar);
+                uLowCharData.s.data[SAMPLESxELEMENTS + ixELEMENTS + 0] = (int16_t)(gyroValue->mX * gyroUint16Scalar);
+                uLowCharData.s.data[SAMPLESxELEMENTS + ixELEMENTS + 1] = (int16_t)(gyroValue->mY * gyroUint16Scalar);
+                uLowCharData.s.data[SAMPLESxELEMENTS + ixELEMENTS + 2] = (int16_t)(gyroValue->mZ * gyroUint16Scalar);
 
-                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 0] = (int16_t)(gyroValue.mX * gyroUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 1] = (int16_t)(gyroValue.mY * gyroUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*1 + j*ELEMENTS + 2] = (int16_t)(gyroValue.mZ * gyroUint16Scalar);
-
-                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 0] = (int16_t)(magnValue.mX * magnUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 1] = (int16_t)(magnValue.mY * magnUint16Scalar);
-                pCharData->s.data[SAMPLES*ELEMENTS*2 + j*ELEMENTS + 2] = (int16_t)(magnValue.mZ * magnUint16Scalar);
-                
-                j++;
-                elmentCnt[i%2] = j < SAMPLES ? j : 0;
-
-                if (j >= SAMPLES ) 
-                {
-                    if (i % 2 ==0) 
-                    {
-                        WB_RES::Characteristic newCharLowValue;
-                        newCharLowValue.bytes = wb::MakeArray<uint8_t>(uLowCharData.b, sizeof(uLowCharData.b));
-                        asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                                    mMeasSvcHandle, mCharHandle, newCharLowValue);
-                    } 
-                    else if ( highRate ) 
-                    {
-                        WB_RES::Characteristic newCharHighValue;
-                        newCharHighValue.bytes = wb::MakeArray<uint8_t>(uHighCharData.b, sizeof(uHighCharData.b));
-                        asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
-                                    mMeasSvcHandle, mChar2Handle, newCharHighValue);
-                    }
-                }
-                
+                uLowCharData.s.data[SAMPLESxELEMENTSx2 + ixELEMENTS + 0] = (int16_t)(magnValue->mX * magnUint16Scalar);
+                uLowCharData.s.data[SAMPLESxELEMENTSx2 + ixELEMENTS + 1] = (int16_t)(magnValue->mY * magnUint16Scalar);
+                uLowCharData.s.data[SAMPLESxELEMENTSx2 + ixELEMENTS + 2] = (int16_t)(magnValue->mZ * magnUint16Scalar);
             }
 
-            
+            WB_RES::Characteristic newCharLowValue;
+            newCharLowValue.bytes = wb::MakeArray<uint8_t>(uLowCharData.b, sizeof(uLowCharData.b));
+            asyncPut(WB_RES::LOCAL::COMM_BLE_GATTSVC_SVCHANDLE_CHARHANDLE(), AsyncRequestOptions::Empty,
+                        mMeasSvcHandle, mCharHandle, newCharLowValue);
 
             break;
         }
@@ -580,24 +345,24 @@ void CustomGATTSvcClient::onNotify(wb::ResourceId resourceId,
                 }
                 
             }
-            else if (parameterRef.getCharHandle() == mChar2Handle) 
-            {
-                const WB_RES::Characteristic &charValue = rValue.convertTo<const WB_RES::Characteristic &>();
-                bool bNotificationsEnabled = charValue.notifications.hasValue() ? charValue.notifications.getValue() : false;
-                DEBUGLOG("onNotify: mAccelCharHadle: bNotificationsEnabled: %d", bNotificationsEnabled);
-                // Update the interval
-                if (bNotificationsEnabled)
-                {
-                    highRate = true;
-                    DebugLogger::verbose("Characteristic 2 Subscription started");
-                }
-                else
-                {
-                    highRate = false;
-                    DebugLogger::verbose("Characteristic 2 Subscription stopped");
-                }
+            // else if (parameterRef.getCharHandle() == mChar2Handle) 
+            // {
+            //     const WB_RES::Characteristic &charValue = rValue.convertTo<const WB_RES::Characteristic &>();
+            //     bool bNotificationsEnabled = charValue.notifications.hasValue() ? charValue.notifications.getValue() : false;
+            //     DEBUGLOG("onNotify: mAccelCharHadle: bNotificationsEnabled: %d", bNotificationsEnabled);
+            //     // Update the interval
+            //     if (bNotificationsEnabled)
+            //     {
+            //         highRate = true;
+            //         DebugLogger::verbose("Characteristic 2 Subscription started");
+            //     }
+            //     else
+            //     {
+            //         highRate = false;
+            //         DebugLogger::verbose("Characteristic 2 Subscription stopped");
+            //     }
                 
-            }
+            // }
             break;
         }
 

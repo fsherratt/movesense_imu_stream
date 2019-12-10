@@ -51,23 +51,12 @@ private:
     void unsubscribeChar();
 
     void configAccel();
-    void subscribeAccel();
-    void unsubscribeAccel();
-
     void configGyro();
-    void subscribeGyro();
-    void unsubscribeGyro();
-
     void configMagn();
-    void subscribeMagn();
-    void unsubscribeMagn();
 
     void subscribeIMU();
     void unsubscribeIMU();
 
-    wb::ResourceId mMeasAccResourceId;
-    wb::ResourceId mMeasGyroResourceId;
-    wb::ResourceId mMeasMagnResourceId;
     wb::ResourceId mMeasIMUResourceId;
 
     wb::ResourceId mCharResource;
@@ -90,7 +79,7 @@ private:
     union uIMU9_104 {
         struct {
             uint32_t timestamp;
-            int16_t data[36];
+            int16_t data[72];
         } s;
         uint8_t b[148];
     };
