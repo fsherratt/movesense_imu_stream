@@ -47,40 +47,46 @@ private:
 
     void configGattSvc();
 
-    void subscribeChar();
-    void unsubscribeChar();
-
     void configAccel();
     void configGyro();
     void configMagn();
 
-    void subscribeIMU();
+    bool subscribeIMU( const char* streamName );
     void unsubscribeIMU();
+    void subscribeTemp();
+    void unsubscribeTemp();
+    void subscribeHr();
+    void unsubscribeHr();
+
+    uint8_t updatedBitmask;
+
+    int16_t temperature;
+    uint16_t heartrate;
+    uint16_t rrInterval;
 
     wb::ResourceId mMeasIMUResourceId;
+    wb::ResourceId mMeasTmpResourceId;
+    wb::ResourceId mMeasHrResourceId;
 
-    wb::ResourceId mCharResource;
-    wb::ResourceId mChar2Resource;
+    wb::ResourceId mCharLRResource;
+    wb::ResourceId mCharHRResource;
+
+    bool dataHighRate;
 
     int32_t mMeasSvcHandle;
-    int32_t mCharHandle;
-    int32_t mChar2Handle;
+    int32_t mCharLRHandle; // Low rate Characteristic
+    int32_t mCharHRHandle; // High rate Characteristic
 
-    bool highRate;
-
-    union uData_104 {
+    union uIMU9_8 {
         struct {
             uint32_t timestamp;
-            int16_t data[8][3];
-        } s;
-        uint8_t b[52];
-    };
-
-    union uIMU9_104 {
-        struct {
-            uint32_t timestamp;
+            int16_t temperature;
+            uint16_t heartrate;
+            uint16_t rrInterval;
             int16_t data[72];
+            uint8_t updated;
+
         } s;
-        uint8_t b[148];
+        uint8_t b[156];
     };
 };
