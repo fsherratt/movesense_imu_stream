@@ -44,6 +44,7 @@ CustomGATTSvcClient::CustomGATTSvcClient():
     mMeasIMUResourceId(wb::ID_INVALID_RESOURCE),
     mMeasTmpResourceId(wb::ID_INVALID_RESOURCE),
     mMeasHrResourceId(wb::ID_INVALID_RESOURCE),
+    mMeasBattResourceId(wb::ID_INVALID_RESOURCE),
     deviceConnected(WB_RES::PeerStateValues::DISCONNECTED)
 {
 }
@@ -70,6 +71,7 @@ bool CustomGATTSvcClient::startModule()
     // Configure custom gatt service
     configGattSvc();
     subscribeBlePeers();
+    subscribeBatt();
     return true;
 }
 
@@ -77,8 +79,43 @@ void CustomGATTSvcClient::stopModule()
 {
     // Stop timer
     unsubscribeIMU();
+    unsubscribeBatt();
     unsubscribeBlePeers();
     mModuleState = WB_RES::ModuleStateValues::STOPPED;
+}
+
+void CustomGATTSvcClient::subscribeBatt()
+{
+    if ( mMeasBattResourceId != wb::ID_INVALID_RESOURCE )
+        return;
+    
+    wb::Result result = getResource("/System/Energy/Level", mMeasBattResourceId);
+    if (!wb::RETURN_OKC(result))
+    {
+        return;
+    }
+
+    result = asyncSubscribe(mMeasBattResourceId, AsyncRequestOptions(NULL, 0, true));
+    if (!wb::RETURN_OKC(result))
+    {
+        DebugLogger::error("asyncsubscribe threw error: %u", result);
+        return;
+    }
+}
+
+void CustomGATTSvcClient::unsubscribeBatt()
+{
+     if ( mMeasBattResourceId == wb::ID_INVALID_RESOURCE )
+        return;
+
+    wb::Result result = asyncUnsubscribe(mMeasBattResourceId, NULL);
+
+    if (!wb::RETURN_OKC(result))
+    {
+        DebugLogger::error("asyncUnsubscribe threw error: %u", result);
+    }
+
+    mMeasBattResourceId = wb::ID_INVALID_RESOURCE;
 }
 
 void CustomGATTSvcClient::subscribeBlePeers()

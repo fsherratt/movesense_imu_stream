@@ -58,6 +58,9 @@ private:
     void subscribeHr();
     void unsubscribeHr();
 
+    void subscribeBatt();
+    void unsubscribeBatt();
+
     uint8_t updatedBitmask;
 
     int16_t temperature;
@@ -70,6 +73,8 @@ private:
 
     wb::ResourceId mCharLRResource;
     wb::ResourceId mCharHRResource;
+
+    wb::ResourceId mMeasBattResourceId;
 
     bool dataHighRate;
 
